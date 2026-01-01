@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { JsonSchema, SchemaParserService, SchemaDocument, ModelRegistry } from 'ngx-data-mapper';
+import { JsonSchema, SchemaParserService, SchemaDocument, ModelRegistry } from '@expeed/ngx-data-mapper';
 
 @Injectable({
   providedIn: 'root',

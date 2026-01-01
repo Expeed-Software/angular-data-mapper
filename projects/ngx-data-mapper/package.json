@@ -1,5 +1,5 @@
 {
-  "name": "ngx-data-mapper",
+  "name": "@expeed/ngx-data-mapper",
   "version": "1.0.0",
   "description": "Visual data mapping components for Angular - drag-and-drop field mapping with transformations, schema editor with JSON Schema export",
   "keywords": [
@@ -14,6 +14,18 @@
     "data-transformation"
   ],
   "license": "Apache-2.0",
+  "author": "Expeed Software",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Expeed-Software/angular-data-mapper.git"
+  },
+  "homepage": "https://github.com/Expeed-Software/angular-data-mapper#readme",
+  "bugs": {
+    "url": "https://github.com/Expeed-Software/angular-data-mapper/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "peerDependencies": {
     "@angular/common": "^21.0.0",
     "@angular/core": "^21.0.0",

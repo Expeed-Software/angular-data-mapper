@@ -17,7 +17,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatMenuModule } from '@angular/material/menu';
-import { SchemaEditorComponent, SchemaDefinition, EditorField } from 'ngx-data-mapper';
+import { SchemaEditorComponent, SchemaDefinition, EditorField } from '@expeed/ngx-data-mapper';
 
 // Extended interface with ID for storage
 interface StoredSchema extends SchemaDefinition {

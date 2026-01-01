@@ -14,7 +14,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { DataMapperComponent, JsonSchema, FieldMapping, MappingService } from 'ngx-data-mapper';
+import { DataMapperComponent, JsonSchema, FieldMapping, MappingService } from '@expeed/ngx-data-mapper';
 import { SampleDataService } from '../../services/sample-data.service';
 
 @Component({
