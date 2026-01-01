@@ -4,6 +4,7 @@
 
 // Models
 export * from './lib/models/schema.model';
+export * from './lib/models/json-schema.model';
 
 // Services
 export * from './lib/services/mapping.service';

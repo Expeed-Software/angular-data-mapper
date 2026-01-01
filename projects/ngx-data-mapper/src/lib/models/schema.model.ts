@@ -10,7 +10,7 @@ export interface SchemaField {
   parentArrayPath?: string; // Path to parent array for context
 }
 
-export interface JsonSchema {
+export interface SchemaDefinition {
   name: string;
   fields: SchemaField[];
 }
@@ -22,6 +22,8 @@ export type TransformationType =
   | 'replace'
   | 'uppercase'
   | 'lowercase'
+  | 'trim'
+  | 'mask'
   | 'dateFormat'
   | 'extractYear'
   | 'extractMonth'
@@ -30,8 +32,12 @@ export type TransformationType =
   | 'extractMinute'
   | 'extractSecond'
   | 'numberFormat'
-  | 'template'
-  | 'custom';
+  | 'template';
+
+export interface TransformationCondition {
+  enabled: boolean;
+  root: FilterGroup;
+}
 
 export interface TransformationConfig {
   type: TransformationType;
@@ -51,15 +57,17 @@ export interface TransformationConfig {
   decimalPlaces?: number;
   prefix?: string;
   suffix?: string;
-  // For custom
-  expression?: string;
+  // For mask
+  pattern?: string;
+  // Optional condition - transformation only applies if condition is met
+  condition?: TransformationCondition;
 }
 
 export interface FieldMapping {
   id: string;
   sourceFields: SchemaField[];
   targetField: SchemaField;
-  transformation: TransformationConfig;
+  transformations: TransformationConfig[]; // Array of transformation steps applied in sequence
   // For array-to-array mappings
   isArrayMapping?: boolean;
   arrayMappingId?: string; // Reference to parent array mapping
@@ -144,7 +152,7 @@ export interface Connection {
   mappingId: string;
   sourcePoints: ConnectionPoint[];
   targetPoint: ConnectionPoint;
-  transformation: TransformationConfig;
+  transformations: TransformationConfig[];
 }
 
 export interface DragState {

@@ -17,10 +17,10 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatMenuModule } from '@angular/material/menu';
-import { SchemaEditorComponent, SchemaDefinition, EditorField } from '@expeed/ngx-data-mapper';
+import { SchemaEditorComponent, JsonSchema } from '@expeed/ngx-data-mapper';
 
 // Extended interface with ID for storage
-interface StoredSchema extends SchemaDefinition {
+interface StoredSchema extends JsonSchema {
   id: string;
 }
 
@@ -92,8 +92,11 @@ export class SchemaEditorPageComponent implements OnInit {
   createNewSchema(): void {
     const newSchema: StoredSchema = {
       id: this.generateId(),
-      name: 'NewSchema',
-      fields: [],
+      $schema: 'https://json-schema.org/draft/2020-12/schema',
+      type: 'object',
+      title: 'NewSchema',
+      properties: {},
+      required: [],
     };
     this.schemas.update(list => [...list, newSchema]);
     this.selectedSchemaId.set(newSchema.id);
@@ -109,12 +112,12 @@ export class SchemaEditorPageComponent implements OnInit {
    * Handle schema changes from the editor component
    * This is called whenever the user modifies the schema
    */
-  onSchemaChange(updated: SchemaDefinition): void {
+  onSchemaChange(updated: JsonSchema): void {
     const id = this.selectedSchemaId();
     if (!id) return;
 
     this.schemas.update(list =>
-      list.map(s => s.id === id ? { ...s, ...updated } : s)
+      list.map(s => s.id === id ? { ...updated, id } as StoredSchema : s)
     );
     this.saveSchemas();
   }
@@ -122,22 +125,14 @@ export class SchemaEditorPageComponent implements OnInit {
   /** Duplicate a schema */
   duplicateSchema(schema: StoredSchema): void {
     const duplicate: StoredSchema = {
+      ...JSON.parse(JSON.stringify(schema)),
       id: this.generateId(),
-      name: schema.name + '_copy',
-      fields: this.cloneFields(schema.fields),
+      title: (schema.title || 'Schema') + '_copy',
     };
     this.schemas.update(list => [...list, duplicate]);
     this.selectedSchemaId.set(duplicate.id);
     this.saveSchemas();
     this.snackBar.open('Schema duplicated', 'Close', { duration: 2000 });
-  }
-
-  private cloneFields(fields: EditorField[]): EditorField[] {
-    return fields.map(f => ({
-      ...f,
-      id: this.generateId(),
-      children: f.children ? this.cloneFields(f.children) : undefined,
-    }));
   }
 
   /** Delete a schema */
@@ -154,110 +149,22 @@ export class SchemaEditorPageComponent implements OnInit {
 
   /** Export schema as valid JSON Schema format */
   exportSchema(schema: StoredSchema): void {
-    const jsonSchema = this.convertToJsonSchema(schema);
+    // Schema is already in JSON Schema format, just remove the internal id
+    const { id, ...jsonSchema } = schema;
     const json = JSON.stringify(jsonSchema, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
 
     const link = document.createElement('a');
     link.href = url;
-    link.download = `${schema.name.toLowerCase()}.schema.json`;
+    link.download = `${(schema.title || 'schema').toLowerCase()}.schema.json`;
     link.click();
 
     URL.revokeObjectURL(url);
     this.snackBar.open('Schema exported as JSON Schema', 'Close', { duration: 2000 });
   }
 
-  /** Convert internal format to JSON Schema */
-  private convertToJsonSchema(schema: StoredSchema): object {
-    const required: string[] = [];
-    const properties: Record<string, object> = {};
-
-    for (const field of schema.fields) {
-      if (field.required && field.name) {
-        required.push(field.name);
-      }
-      if (field.name) {
-        properties[field.name] = this.fieldToJsonSchema(field);
-      }
-    }
-
-    const jsonSchema: Record<string, unknown> = {
-      $schema: 'https://json-schema.org/draft/2020-12/schema',
-      type: 'object',
-      title: schema.name,
-      properties,
-    };
-
-    if (required.length > 0) {
-      jsonSchema['required'] = required;
-    }
-
-    return jsonSchema;
-  }
-
-  private fieldToJsonSchema(field: EditorField): object {
-    const schema: Record<string, unknown> = {};
-
-    if (field.type === 'date') {
-      schema['type'] = 'string';
-      schema['format'] = 'date-time';
-    } else if (field.type === 'array') {
-      schema['type'] = 'array';
-      if (field.children && field.children.length > 0) {
-        const itemProperties: Record<string, object> = {};
-        const itemRequired: string[] = [];
-        for (const child of field.children) {
-          if (child.name) {
-            itemProperties[child.name] = this.fieldToJsonSchema(child);
-            if (child.required) {
-              itemRequired.push(child.name);
-            }
-          }
-        }
-        const items: Record<string, unknown> = {
-          type: 'object',
-          properties: itemProperties,
-        };
-        if (itemRequired.length > 0) {
-          items['required'] = itemRequired;
-        }
-        schema['items'] = items;
-      }
-    } else if (field.type === 'object') {
-      schema['type'] = 'object';
-      if (field.children && field.children.length > 0) {
-        const childProperties: Record<string, object> = {};
-        const childRequired: string[] = [];
-        for (const child of field.children) {
-          if (child.name) {
-            childProperties[child.name] = this.fieldToJsonSchema(child);
-            if (child.required) {
-              childRequired.push(child.name);
-            }
-          }
-        }
-        schema['properties'] = childProperties;
-        if (childRequired.length > 0) {
-          schema['required'] = childRequired;
-        }
-      }
-    } else {
-      schema['type'] = field.type;
-    }
-
-    if (field.description) {
-      schema['description'] = field.description;
-    }
-
-    if (field.allowedValues && field.allowedValues.length > 0) {
-      schema['enum'] = field.allowedValues;
-    }
-
-    return schema;
-  }
-
-  /** Import schema from file (internal format) */
+  /** Import schema from file (JSON Schema format) */
   importSchema(event: Event): void {
     const input = event.target as HTMLInputElement;
     if (!input.files?.length) return;
@@ -268,12 +175,12 @@ export class SchemaEditorPageComponent implements OnInit {
     reader.onload = () => {
       try {
         const json = reader.result as string;
-        const data = JSON.parse(json) as SchemaDefinition;
+        const data = JSON.parse(json) as JsonSchema;
 
         const newSchema: StoredSchema = {
+          ...data,
           id: this.generateId(),
-          name: data.name || 'ImportedSchema',
-          fields: data.fields || [],
+          title: data.title || 'ImportedSchema',
         };
 
         this.schemas.update(list => [...list, newSchema]);
@@ -288,5 +195,10 @@ export class SchemaEditorPageComponent implements OnInit {
 
     reader.readAsText(file);
     input.value = '';
+  }
+
+  /** Get the number of properties in a schema */
+  getPropertyCount(schema: StoredSchema): number {
+    return Object.keys(schema.properties || {}).length;
   }
 }

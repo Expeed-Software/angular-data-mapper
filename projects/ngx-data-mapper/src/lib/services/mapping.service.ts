@@ -103,10 +103,10 @@ export class MappingService {
             (sf) => !existingMapping.sourceFields.some((esf) => esf.id === sf.id)
           ),
         ],
-        transformation:
+        transformations:
           existingMapping.sourceFields.length + sourceFields.length > 1
-            ? { type: 'concat', separator: ' ', ...transformation }
-            : transformation || { type: 'direct' },
+            ? [{ type: 'concat', separator: ' ', ...transformation }]
+            : transformation ? [transformation] : [{ type: 'direct' }],
       };
 
       this.mappings.update((mappings) =>
@@ -120,7 +120,7 @@ export class MappingService {
       id: this.generateId(),
       sourceFields,
       targetField,
-      transformation: transformation || { type: 'direct' },
+      transformations: transformation ? [transformation] : [{ type: 'direct' }],
       isArrayMapping: false, // Only true for array-to-array connections
       arrayMappingId, // Links to parent array mapping if within array context
       isArrayToObjectMapping: false,
@@ -183,7 +183,7 @@ export class MappingService {
       id: arrayMapping.id,
       sourceFields: [sourceArray],
       targetField: targetArray,
-      transformation: { type: 'direct' },
+      transformations: [{ type: 'direct' }],
       isArrayMapping: true,
     };
 
@@ -221,7 +221,7 @@ export class MappingService {
       id: arrayToObjectMapping.id,
       sourceFields: [sourceArray],
       targetField: targetObject,
-      transformation: { type: 'direct' },
+      transformations: [{ type: 'direct' }],
       isArrayToObjectMapping: true,
     };
 
@@ -336,13 +336,13 @@ export class MappingService {
     );
   }
 
-  updateTransformation(
+  updateTransformations(
     mappingId: string,
-    transformation: TransformationConfig
+    transformations: TransformationConfig[]
   ): void {
     this.mappings.update((mappings) =>
       mappings.map((m) =>
-        m.id === mappingId ? { ...m, transformation } : m
+        m.id === mappingId ? { ...m, transformations } : m
       )
     );
   }
@@ -371,10 +371,10 @@ export class MappingService {
                 sourceFields: m.sourceFields.filter(
                   (sf) => sf.id !== sourceFieldId
                 ),
-                transformation:
+                transformations:
                   m.sourceFields.length - 1 === 1
-                    ? { type: 'direct' }
-                    : m.transformation,
+                    ? [{ type: 'direct' }]
+                    : m.transformations,
               }
             : m
         )
@@ -448,14 +448,32 @@ export class MappingService {
     }
   }
 
-  exportMappings(): string {
+  exportMappings(name?: string, description?: string): string {
     const exportData = {
+      version: '1.0',
+      name: name || 'Mapping Configuration',
+      description: description || '',
       mappings: this.mappings(),
       arrayMappings: this.arrayMappings(),
       arrayToObjectMappings: this.arrayToObjectMappings(),
       defaultValues: this.defaultValues(),
     };
     return JSON.stringify(exportData, null, 2);
+  }
+
+  /**
+   * Export mappings as a MappingDocument object (not stringified)
+   */
+  exportMappingsAsObject(name?: string, description?: string): object {
+    return {
+      version: '1.0',
+      name: name || 'Mapping Configuration',
+      description: description || '',
+      mappings: this.mappings(),
+      arrayMappings: this.arrayMappings(),
+      arrayToObjectMappings: this.arrayToObjectMappings(),
+      defaultValues: this.defaultValues(),
+    };
   }
 
   importMappings(json: string): void {

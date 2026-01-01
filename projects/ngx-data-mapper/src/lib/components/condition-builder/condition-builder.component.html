@@ -1,0 +1,139 @@
+<div class="condition-builder" [class.compact]="compact">
+  <ng-container *ngTemplateOutlet="groupTemplate; context: { group: rootGroup, isRoot: true }"></ng-container>
+</div>
+
+<!-- Recursive group template -->
+<ng-template #groupTemplate let-group="group" let-isRoot="isRoot" let-parentGroup="parentGroup">
+  <div class="filter-group" [class.root-group]="isRoot" [class.nested-group]="!isRoot">
+    <!-- Group header with logic toggle (only show if multiple children or nested) -->
+    @if (group.children.length > 1 || !isRoot) {
+      <div class="group-header">
+        <div class="logic-toggle">
+          <button
+            type="button"
+            class="logic-btn"
+            [class.active]="group.logic === 'and'"
+            (click)="onLogicChange(group, 'and')"
+          >
+            AND
+          </button>
+          <button
+            type="button"
+            class="logic-btn"
+            [class.active]="group.logic === 'or'"
+            (click)="onLogicChange(group, 'or')"
+          >
+            OR
+          </button>
+        </div>
+        @if (!isRoot) {
+          <button mat-icon-button class="remove-group-btn" matTooltip="Remove group" (click)="removeItem(parentGroup, group.id)">
+            <mat-icon>close</mat-icon>
+          </button>
+        }
+      </div>
+    }
+
+    <!-- Group children -->
+    <div class="group-children">
+      @for (item of group.children; track item.id; let i = $index) {
+        <!-- Logic connector between items -->
+        @if (i > 0) {
+          <div class="logic-connector">
+            <span class="logic-badge" [class.and]="group.logic === 'and'" [class.or]="group.logic === 'or'">
+              {{ group.logic | uppercase }}
+            </span>
+          </div>
+        }
+
+        @if (isCondition(item)) {
+          <!-- Condition row -->
+          <div class="condition-row">
+            <!-- Field selector (only if multiple fields) -->
+            @if (showFieldSelector) {
+              <mat-form-field appearance="outline" class="field-select">
+                <mat-select [value]="item.field" (selectionChange)="onFieldChange(item, $event.value)">
+                  @for (field of availableFields; track field.path) {
+                    <mat-option [value]="field.path">{{ field.name }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+            }
+
+            <!-- Operator selector -->
+            <mat-form-field appearance="outline" class="operator-select">
+              <mat-select [value]="item.operator" (selectionChange)="onOperatorChange(item, $event.value)">
+                @for (op of getOperatorsForField(item.field); track op.value) {
+                  <mat-option [value]="op.value">{{ op.label }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+
+            <!-- Value input (only if operator needs value) -->
+            @if (operatorNeedsValue(item.operator)) {
+              @if (item.valueType === 'boolean') {
+                <mat-slide-toggle
+                  [checked]="item.value === true"
+                  (change)="onValueChange(item, $event.checked)"
+                  class="bool-toggle"
+                >
+                </mat-slide-toggle>
+              } @else if (item.valueType === 'number') {
+                <mat-form-field appearance="outline" class="value-input">
+                  <input
+                    matInput
+                    type="number"
+                    [value]="item.value"
+                    (input)="onValueChange(item, $any($event.target).value)"
+                    placeholder="value"
+                  />
+                </mat-form-field>
+              } @else {
+                <mat-form-field appearance="outline" class="value-input">
+                  <input
+                    matInput
+                    type="text"
+                    [value]="item.value"
+                    (input)="onValueChange(item, $any($event.target).value)"
+                    placeholder="value"
+                  />
+                </mat-form-field>
+              }
+            }
+
+            <!-- Remove condition button -->
+            <button mat-icon-button class="remove-btn" matTooltip="Remove" (click)="removeItem(group, item.id)">
+              <mat-icon>close</mat-icon>
+            </button>
+          </div>
+        } @else if (isGroup(item)) {
+          <!-- Nested group -->
+          <ng-container *ngTemplateOutlet="groupTemplate; context: { group: item, isRoot: false, parentGroup: group }"></ng-container>
+        }
+      }
+
+      <!-- Empty state -->
+      @if (group.children.length === 0) {
+        <div class="empty-group">
+          <span>No conditions defined</span>
+        </div>
+      }
+    </div>
+
+    <!-- Group actions -->
+    <div class="group-actions">
+      <button type="button" class="add-btn" (click)="addCondition(group)">
+        <mat-icon>add</mat-icon>
+        @if (!compact) {
+          <span>Add condition</span>
+        }
+      </button>
+      @if (!compact && group.children.length > 0) {
+        <button type="button" class="add-btn add-group-btn" (click)="addGroup(group)">
+          <mat-icon>folder_open</mat-icon>
+          <span>Add group</span>
+        </button>
+      }
+    </div>
+  </div>
+</ng-template>

@@ -4,7 +4,6 @@ import {
   Output,
   EventEmitter,
   signal,
-  computed,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -16,8 +15,10 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatMenuModule } from '@angular/material/menu';
 import { DragDropModule } from '@angular/cdk/drag-drop';
+import { JsonSchema } from '../../models/json-schema.model';
 
-export interface EditorField {
+// Internal representation for UI editing
+interface EditorField {
   id: string;
   name: string;
   type: 'string' | 'number' | 'boolean' | 'date' | 'object' | 'array';
@@ -28,11 +29,6 @@ export interface EditorField {
   expanded?: boolean;
   isEditing?: boolean;
   isEditingValues?: boolean;
-}
-
-export interface SchemaDefinition {
-  name: string;
-  fields: EditorField[];
 }
 
 @Component({
@@ -54,15 +50,15 @@ export interface SchemaDefinition {
   styleUrl: './schema-editor.component.scss',
 })
 export class SchemaEditorComponent {
-  @Input() set schema(value: SchemaDefinition | null) {
+  @Input() set schema(value: JsonSchema | null) {
     if (value) {
-      this.schemaName.set(value.name);
-      this.fields.set(this.cloneFields(value.fields));
+      this.schemaName.set(value.title || 'New Schema');
+      this.fields.set(this.jsonSchemaToEditorFields(value));
     }
   }
 
-  @Output() schemaChange = new EventEmitter<SchemaDefinition>();
-  @Output() save = new EventEmitter<SchemaDefinition>();
+  @Output() schemaChange = new EventEmitter<JsonSchema>();
+  @Output() save = new EventEmitter<JsonSchema>();
 
   schemaName = signal('New Schema');
   fields = signal<EditorField[]>([]);
@@ -375,18 +371,64 @@ export class SchemaEditorComponent {
 
   // Emit change event
   private emitChange(): void {
-    this.schemaChange.emit({
-      name: this.schemaName(),
-      fields: this.fields(),
-    });
+    this.schemaChange.emit(this.toJsonSchema() as JsonSchema);
   }
 
   // Save the schema
   onSave(): void {
-    this.save.emit({
-      name: this.schemaName(),
-      fields: this.fields(),
-    });
+    this.save.emit(this.toJsonSchema() as JsonSchema);
+  }
+
+  // Convert JSON Schema to internal EditorField format
+  private jsonSchemaToEditorFields(schema: JsonSchema, requiredFields: string[] = []): EditorField[] {
+    const fields: EditorField[] = [];
+
+    if (schema.type === 'object' && schema.properties) {
+      const required = schema.required || requiredFields;
+      for (const [name, propSchema] of Object.entries(schema.properties)) {
+        fields.push(this.jsonSchemaPropertyToEditorField(name, propSchema, required.includes(name)));
+      }
+    }
+
+    return fields;
+  }
+
+  private jsonSchemaPropertyToEditorField(name: string, schema: JsonSchema, isRequired: boolean): EditorField {
+    const field: EditorField = {
+      id: this.generateId(),
+      name,
+      type: this.jsonSchemaTypeToEditorType(schema),
+      description: schema.description,
+      required: isRequired,
+      allowedValues: schema.enum as string[] | undefined,
+      expanded: false,
+    };
+
+    if (schema.type === 'object' && schema.properties) {
+      field.children = this.jsonSchemaToEditorFields(schema, schema.required);
+    } else if (schema.type === 'array' && schema.items) {
+      if (schema.items.type === 'object' && schema.items.properties) {
+        field.children = this.jsonSchemaToEditorFields(schema.items, schema.items.required);
+      }
+    }
+
+    return field;
+  }
+
+  private jsonSchemaTypeToEditorType(schema: JsonSchema): EditorField['type'] {
+    if (schema.format === 'date' || schema.format === 'date-time') {
+      return 'date';
+    }
+    const type = Array.isArray(schema.type) ? schema.type[0] : schema.type;
+    switch (type) {
+      case 'string': return 'string';
+      case 'number':
+      case 'integer': return 'number';
+      case 'boolean': return 'boolean';
+      case 'object': return 'object';
+      case 'array': return 'array';
+      default: return 'string';
+    }
   }
 
   // Convert to internal JSON format

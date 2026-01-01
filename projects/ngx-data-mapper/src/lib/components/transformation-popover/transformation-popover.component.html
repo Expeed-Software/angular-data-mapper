@@ -21,164 +21,122 @@
       </div>
     </div>
 
-    <!-- Transformation Type -->
-    <mat-form-field appearance="outline" class="full-width">
-      <mat-label>Transformation Type</mat-label>
-      <mat-select [(ngModel)]="transformationType" (selectionChange)="onTypeChange()">
-        @for (t of availableTransformations; track t.type) {
-          <mat-option [value]="t.type">{{ t.label }}</mat-option>
-        }
-      </mat-select>
-    </mat-form-field>
+    <!-- Single Step Mode (default, clean UI) -->
+    @if (!isMultiStep) {
+      <ng-container *ngTemplateOutlet="stepConfig; context: { step: steps[0], index: 0, showHeader: false }"></ng-container>
 
-    <!-- Type-specific options -->
-    @switch (transformationType) {
-      @case ('concat') {
-        <div class="config-section">
-          <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Template</mat-label>
-            <input
-              matInput
-              [(ngModel)]="config.template"
-              (ngModelChange)="onConfigChange()"
-              placeholder="{field1} - {field2}"
-            />
-            <mat-hint>Use curly braces around fieldName for values</mat-hint>
-          </mat-form-field>
-        </div>
-      }
-
-      @case ('substring') {
-        <div class="config-section config-row">
-          <mat-form-field appearance="outline">
-            <mat-label>Start Index</mat-label>
-            <input
-              matInput
-              type="number"
-              [(ngModel)]="config.startIndex"
-              (ngModelChange)="onConfigChange()"
-              min="0"
-            />
-          </mat-form-field>
-          <mat-form-field appearance="outline">
-            <mat-label>End Index</mat-label>
-            <input
-              matInput
-              type="number"
-              [(ngModel)]="config.endIndex"
-              (ngModelChange)="onConfigChange()"
-            />
-          </mat-form-field>
-        </div>
-      }
-
-      @case ('replace') {
-        <div class="config-section">
-          <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Search For</mat-label>
-            <input
-              matInput
-              [(ngModel)]="config.searchValue"
-              (ngModelChange)="onConfigChange()"
-            />
-          </mat-form-field>
-          <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Replace With</mat-label>
-            <input
-              matInput
-              [(ngModel)]="config.replaceValue"
-              (ngModelChange)="onConfigChange()"
-            />
-          </mat-form-field>
-        </div>
-      }
-
-      @case ('dateFormat') {
-        <div class="config-section">
-          <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Output Format</mat-label>
-            <input
-              matInput
-              [(ngModel)]="config.outputFormat"
-              (ngModelChange)="onConfigChange()"
-              placeholder="YYYY-MM-DD"
-            />
-            <mat-hint>YYYY, MM, DD, HH, mm, ss</mat-hint>
-          </mat-form-field>
-        </div>
-      }
-
-      @case ('numberFormat') {
-        <div class="config-section">
-          <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Decimal Places</mat-label>
-            <input
-              matInput
-              type="number"
-              [(ngModel)]="config.decimalPlaces"
-              (ngModelChange)="onConfigChange()"
-              min="0"
-            />
-          </mat-form-field>
-          <div class="config-row">
-            <mat-form-field appearance="outline">
-              <mat-label>Prefix</mat-label>
-              <input
-                matInput
-                [(ngModel)]="config.prefix"
-                (ngModelChange)="onConfigChange()"
-                placeholder="$"
-              />
-            </mat-form-field>
-            <mat-form-field appearance="outline">
-              <mat-label>Suffix</mat-label>
-              <input
-                matInput
-                [(ngModel)]="config.suffix"
-                (ngModelChange)="onConfigChange()"
-              />
-            </mat-form-field>
-          </div>
-        </div>
-      }
-
-      @case ('template') {
-        <div class="config-section">
-          <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Template Expression</mat-label>
-            <textarea
-              matInput
-              [(ngModel)]="config.template"
-              (ngModelChange)="onConfigChange()"
-              rows="3"
-              placeholder="Hello {firstName}, your ID is {id}"
-            ></textarea>
-          </mat-form-field>
-        </div>
-      }
-
-      @case ('custom') {
-        <div class="config-section">
-          <mat-form-field appearance="outline" class="full-width">
-            <mat-label>JavaScript Expression</mat-label>
-            <textarea
-              matInput
-              [(ngModel)]="config.expression"
-              (ngModelChange)="onConfigChange()"
-              rows="3"
-              placeholder="fieldName.toUpperCase()"
-            ></textarea>
-            <mat-hint>Use field names as variables</mat-hint>
-          </mat-form-field>
-        </div>
-      }
+      <!-- Preview Section -->
+      <div class="preview-section">
+        <span class="preview-label">Preview:</span>
+        <div class="preview-value">{{ stepPreviews[0] || '(empty)' }}</div>
+      </div>
     }
 
-    <!-- Preview Section -->
-    <div class="preview-section">
-      <span class="preview-label">Preview:</span>
-      <div class="preview-value">{{ preview || '(empty)' }}</div>
-    </div>
+    <!-- Multi-Step Mode -->
+    @if (isMultiStep) {
+      <div class="steps-container" cdkDropList (cdkDropListDropped)="onStepDrop($event)">
+        @for (step of steps; track $index; let i = $index) {
+          <div class="step-card" [class.expanded]="isStepExpanded(i)" cdkDrag>
+            <!-- Collapsed View -->
+            @if (!isStepExpanded(i)) {
+              <div class="step-collapsed" (click)="toggleStep(i)">
+                <mat-icon class="drag-handle" cdkDragHandle (click)="$event.stopPropagation()">drag_indicator</mat-icon>
+                <div class="step-collapsed-header">
+                  <div class="step-title-row">
+                    <span class="step-number">Step {{ i + 1 }}: {{ getStepTypeLabel(step.type) }}</span>
+                    @if (hasCondition(step)) {
+                      <span class="condition-badge" matTooltip="{{ getConditionSummary(step) }}">
+                        <mat-icon>filter_alt</mat-icon>
+                        if
+                      </span>
+                    }
+                  </div>
+                  <div class="step-collapsed-actions">
+                    <button
+                      mat-icon-button
+                      class="expand-btn"
+                      (click)="toggleStep(i); $event.stopPropagation()"
+                      matTooltip="Edit step"
+                    >
+                      <mat-icon>edit</mat-icon>
+                    </button>
+                    <button
+                      mat-icon-button
+                      class="remove-step-btn"
+                      (click)="removeStep(i); $event.stopPropagation()"
+                      matTooltip="Remove step"
+                    >
+                      <mat-icon>close</mat-icon>
+                    </button>
+                  </div>
+                </div>
+                <div class="step-collapsed-preview">
+                  <span class="step-input">"{{ (stepInputs[i] || '') | slice:0:20 }}{{ (stepInputs[i] || '').length > 20 ? '...' : '' }}"</span>
+                  <mat-icon class="arrow-icon">arrow_forward</mat-icon>
+                  <span class="step-output">"{{ (stepPreviews[i] || '') | slice:0:20 }}{{ (stepPreviews[i] || '').length > 20 ? '...' : '' }}"</span>
+                </div>
+              </div>
+            }
+
+            <!-- Expanded View -->
+            @if (isStepExpanded(i)) {
+              <div class="step-expanded">
+                <mat-icon class="drag-handle" cdkDragHandle>drag_indicator</mat-icon>
+                <div class="step-header">
+                  <span class="step-number">Step {{ i + 1 }}</span>
+                  <div class="step-header-actions">
+                    <button
+                      mat-icon-button
+                      class="collapse-btn"
+                      (click)="toggleStep(i)"
+                      matTooltip="Collapse"
+                    >
+                      <mat-icon>expand_less</mat-icon>
+                    </button>
+                    <button
+                      mat-icon-button
+                      class="remove-step-btn"
+                      (click)="removeStep(i)"
+                      matTooltip="Remove step"
+                    >
+                      <mat-icon>close</mat-icon>
+                    </button>
+                  </div>
+                </div>
+
+                <div class="step-content">
+                  <ng-container *ngTemplateOutlet="stepConfig; context: { step: step, index: i, showHeader: false }"></ng-container>
+                </div>
+
+                <!-- Step Preview -->
+                <div class="step-preview">
+                  <mat-icon class="preview-arrow">arrow_downward</mat-icon>
+                  <span class="step-preview-value">{{ stepPreviews[i] || '(empty)' }}</span>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </div>
+
+      <!-- Final Preview -->
+      <div class="preview-section final-preview">
+        <span class="preview-label">Final Result:</span>
+        <div class="preview-value">{{ finalPreview || '(empty)' }}</div>
+      </div>
+    }
+  </div>
+
+  <!-- Add Step Button - Always visible -->
+  <div class="add-step-section">
+    <button mat-stroked-button class="add-step-btn" (click)="addStep()">
+      <mat-icon>add</mat-icon>
+      @if (isMultiStep) {
+        Add Step
+      } @else {
+        Add Transformation Step
+      }
+    </button>
   </div>
 
   <div class="popover-actions">
@@ -194,3 +152,195 @@
 
 <!-- Backdrop -->
 <div class="popover-backdrop" (click)="onClose()"></div>
+
+<!-- Step Configuration Template -->
+<ng-template #stepConfig let-step="step" let-index="index" let-showHeader="showHeader">
+  <!-- Transformation Type -->
+  <mat-form-field appearance="outline" class="full-width">
+    <mat-label>Transformation Type</mat-label>
+    <mat-select [(ngModel)]="step.type" (selectionChange)="onStepTypeChange(index)">
+      @for (t of availableTransformations; track t.type) {
+        <mat-option [value]="t.type">{{ t.label }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+
+  <!-- Type-specific options -->
+  @switch (step.type) {
+    @case ('concat') {
+      <div class="config-section">
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Separator</mat-label>
+          <input
+            matInput
+            [(ngModel)]="step.separator"
+            (ngModelChange)="onConfigChange()"
+            placeholder=" "
+          />
+          <mat-hint>Join values with this (default: space)</mat-hint>
+        </mat-form-field>
+        <div class="or-divider">or use template for custom format</div>
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Template</mat-label>
+          <input
+            matInput
+            [(ngModel)]="step.template"
+            (ngModelChange)="onConfigChange()"
+            [placeholder]="'{0} - {1}'"
+          />
+          <mat-hint>Overrides separator if set</mat-hint>
+        </mat-form-field>
+      </div>
+    }
+
+    @case ('substring') {
+      <div class="config-section config-row">
+        <mat-form-field appearance="outline">
+          <mat-label>Start Index</mat-label>
+          <input
+            matInput
+            type="number"
+            [(ngModel)]="step.startIndex"
+            (ngModelChange)="onConfigChange()"
+            min="0"
+          />
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>End Index</mat-label>
+          <input
+            matInput
+            type="number"
+            [(ngModel)]="step.endIndex"
+            (ngModelChange)="onConfigChange()"
+          />
+        </mat-form-field>
+      </div>
+    }
+
+    @case ('replace') {
+      <div class="config-section">
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Search For</mat-label>
+          <input
+            matInput
+            [(ngModel)]="step.searchValue"
+            (ngModelChange)="onConfigChange()"
+          />
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Replace With</mat-label>
+          <input
+            matInput
+            [(ngModel)]="step.replaceValue"
+            (ngModelChange)="onConfigChange()"
+          />
+        </mat-form-field>
+      </div>
+    }
+
+    @case ('dateFormat') {
+      <div class="config-section">
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Output Format</mat-label>
+          <input
+            matInput
+            [(ngModel)]="step.outputFormat"
+            (ngModelChange)="onConfigChange()"
+            placeholder="YYYY-MM-DD"
+          />
+          <mat-hint>YYYY, MM, DD, HH, mm, ss</mat-hint>
+        </mat-form-field>
+      </div>
+    }
+
+    @case ('numberFormat') {
+      <div class="config-section">
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Decimal Places</mat-label>
+          <input
+            matInput
+            type="number"
+            [(ngModel)]="step.decimalPlaces"
+            (ngModelChange)="onConfigChange()"
+            min="0"
+          />
+        </mat-form-field>
+        <div class="config-row">
+          <mat-form-field appearance="outline">
+            <mat-label>Prefix</mat-label>
+            <input
+              matInput
+              [(ngModel)]="step.prefix"
+              (ngModelChange)="onConfigChange()"
+              placeholder="$"
+            />
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Suffix</mat-label>
+            <input
+              matInput
+              [(ngModel)]="step.suffix"
+              (ngModelChange)="onConfigChange()"
+            />
+          </mat-form-field>
+        </div>
+      </div>
+    }
+
+    @case ('mask') {
+      <div class="config-section">
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Pattern</mat-label>
+          <input
+            matInput
+            [(ngModel)]="step.pattern"
+            (ngModelChange)="onConfigChange()"
+            placeholder="(###) ###-####"
+          />
+          <mat-hint># = character from input</mat-hint>
+        </mat-form-field>
+      </div>
+    }
+
+    @case ('template') {
+      <div class="config-section">
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Template Expression</mat-label>
+          <textarea
+            matInput
+            [(ngModel)]="step.template"
+            (ngModelChange)="onConfigChange()"
+            rows="3"
+            [placeholder]="'Hello {0}, your ID is {1}'"
+          ></textarea>
+          @if (index === 0) {
+            <mat-hint>Use {{ '{' }}0{{ '}' }}, {{ '{' }}1{{ '}' }}, etc. for source fields</mat-hint>
+          } @else {
+            <mat-hint>Use {{ '{' }}0{{ '}' }} for the value from previous step</mat-hint>
+          }
+        </mat-form-field>
+      </div>
+    }
+  }
+
+  <!-- Condition Section -->
+  <div class="condition-section">
+    <mat-checkbox
+      [checked]="hasCondition(step)"
+      (change)="toggleCondition(step, $event.checked)"
+      class="condition-checkbox"
+    >
+      Apply conditionally
+    </mat-checkbox>
+
+    @if (hasCondition(step)) {
+      <div class="condition-content">
+        <condition-builder
+          [condition]="step.condition?.root || null"
+          [compact]="true"
+          (conditionChange)="onConditionChange(step, $event)"
+        ></condition-builder>
+      </div>
+    }
+  </div>
+</ng-template>

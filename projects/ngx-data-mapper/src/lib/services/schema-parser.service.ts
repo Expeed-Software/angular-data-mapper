@@ -1,32 +1,17 @@
 import { Injectable } from '@angular/core';
-import { SchemaField, JsonSchema } from '../models/schema.model';
+import { SchemaField, SchemaDefinition } from '../models/schema.model';
+import { JsonSchema } from '../models/json-schema.model';
 
-export interface JsonSchemaDefinition {
-  type?: string;
-  format?: string;
-  properties?: Record<string, JsonSchemaDefinition>;
-  items?: JsonSchemaDefinition;
+// Extended schema document with filtering options
+export interface SchemaDocument extends JsonSchema {
   $ref?: string;
-  description?: string;
-  enum?: string[];
-  required?: string[];
-  additionalProperties?: boolean | JsonSchemaDefinition;
-}
-
-export interface SchemaDocument {
-  $ref?: string;
-  $defs?: Record<string, JsonSchemaDefinition>;
-  definitions?: Record<string, JsonSchemaDefinition>;
+  $defs?: Record<string, JsonSchema>;  // Alternative to definitions
   exclude?: string[];
   include?: string[];
-  properties?: Record<string, JsonSchemaDefinition>;
-  type?: string;
-  title?: string;
-  description?: string;
 }
 
 export interface ModelRegistry {
-  [modelName: string]: JsonSchemaDefinition;
+  [modelName: string]: JsonSchema;
 }
 
 @Injectable({
@@ -47,7 +32,7 @@ export class SchemaParserService {
   parseSchema(
     schemaJson: string | SchemaDocument,
     schemaName: string = 'Schema'
-  ): JsonSchema {
+  ): SchemaDefinition {
     const schema: SchemaDocument =
       typeof schemaJson === 'string' ? JSON.parse(schemaJson) : schemaJson;
 
@@ -57,14 +42,14 @@ export class SchemaParserService {
     const localDefs = schema.$defs || schema.definitions || {};
     const combinedRegistry = { ...this.modelRegistry, ...localDefs };
 
-    let resolvedSchema: JsonSchemaDefinition;
+    let resolvedSchema: JsonSchema;
 
     if (schema.$ref) {
       // Resolve the reference
       resolvedSchema = this.resolveRef(schema.$ref, combinedRegistry);
     } else if (schema.properties) {
       // Direct schema with properties
-      resolvedSchema = schema as JsonSchemaDefinition;
+      resolvedSchema = schema as JsonSchema;
     } else {
       throw new Error('Schema must have either $ref or properties');
     }
@@ -90,8 +75,8 @@ export class SchemaParserService {
 
   private resolveRef(
     ref: string,
-    registry: Record<string, JsonSchemaDefinition>
-  ): JsonSchemaDefinition {
+    registry: Record<string, JsonSchema>
+  ): JsonSchema {
     // Handle different ref formats:
     // #model, #/definitions/model, #/$defs/model, model
     let modelName: string;
@@ -120,8 +105,8 @@ export class SchemaParserService {
   }
 
   private buildFields(
-    schema: JsonSchemaDefinition,
-    registry: Record<string, JsonSchemaDefinition>,
+    schema: JsonSchema,
+    registry: Record<string, JsonSchema>,
     parentPath: string,
     arrayContext?: { isArrayItem: boolean; parentArrayPath: string }
   ): SchemaField[] {
@@ -142,8 +127,8 @@ export class SchemaParserService {
 
   private buildField(
     name: string,
-    schema: JsonSchemaDefinition,
-    registry: Record<string, JsonSchemaDefinition>,
+    schema: JsonSchema,
+    registry: Record<string, JsonSchema>,
     path: string,
     arrayContext?: { isArrayItem: boolean; parentArrayPath: string }
   ): SchemaField {
@@ -191,9 +176,9 @@ export class SchemaParserService {
   }
 
   private mapType(
-    schema: JsonSchemaDefinition
+    schema: JsonSchema
   ): 'string' | 'number' | 'boolean' | 'object' | 'array' | 'date' {
-    const type = schema.type;
+    const type = Array.isArray(schema.type) ? schema.type[0] : schema.type;
     const format = schema.format;
 
     // Check format first for date types

@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { JsonSchema, SchemaParserService, SchemaDocument, ModelRegistry } from '@expeed/ngx-data-mapper';
+import { SchemaParserService, SchemaDocument, ModelRegistry } from '@expeed/ngx-data-mapper';
 
 @Injectable({
   providedIn: 'root',
@@ -154,51 +154,46 @@ export class SampleDataService {
     };
   }
 
-  getSourceSchema(): JsonSchema {
-    // Using JSON string format as shown by user
-    const inputSchema = `{
-      "$ref": "#Customer",
-      "exclude": ["id", "createdAt", "updatedAt", "tags"]
-    }`;
-
-    return this.schemaParser.parseSchema(inputSchema, 'Customer');
+  getSourceSchema(): SchemaDocument {
+    // Using object format with $ref and exclude
+    return {
+      $ref: '#Customer',
+      exclude: ['id', 'createdAt', 'updatedAt', 'tags'],
+      title: 'Customer',
+    };
   }
 
-  getTargetSchema(): JsonSchema {
-    // Using object format
-    const outputSchema: SchemaDocument = {
+  getTargetSchema(): SchemaDocument {
+    // Using object format with $ref and exclude
+    return {
       $ref: '#UserProfile',
       exclude: ['id', 'createdAt'],
       title: 'User Profile',
     };
-
-    return this.schemaParser.parseSchema(outputSchema, 'User Profile');
   }
 
   // Alternative: Get schema with inline definitions
-  getSchemaWithInlineDefinitions(): JsonSchema {
-    const schemaWithDefs = `{
-      "$ref": "#/definitions/Order",
-      "definitions": {
-        "Order": {
-          "type": "object",
-          "properties": {
-            "orderId": { "type": "string" },
-            "customer": { "$ref": "#/definitions/CustomerRef" },
-            "total": { "type": "number" }
-          }
+  getSchemaWithInlineDefinitions(): SchemaDocument {
+    return {
+      $ref: '#/definitions/Order',
+      definitions: {
+        Order: {
+          type: 'object',
+          properties: {
+            orderId: { type: 'string' },
+            customer: { $ref: '#/definitions/CustomerRef' },
+            total: { type: 'number' },
+          },
         },
-        "CustomerRef": {
-          "type": "object",
-          "properties": {
-            "id": { "type": "string" },
-            "name": { "type": "string" }
-          }
-        }
-      }
-    }`;
-
-    return this.schemaParser.parseSchema(schemaWithDefs, 'Order');
+        CustomerRef: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            name: { type: 'string' },
+          },
+        },
+      },
+    };
   }
 
   getSampleData(): Record<string, unknown> {
@@ -220,9 +215,10 @@ export class SampleDataService {
     };
   }
 
-  // Method to parse any schema string
-  parseSchemaString(schemaJson: string, name: string): JsonSchema {
-    return this.schemaParser.parseSchema(schemaJson, name);
+  // Method to parse a schema document
+  parseSchema(schema: SchemaDocument, name: string): SchemaDocument {
+    // Just return the schema document - data-mapper handles conversion
+    return { ...schema, title: name };
   }
 
   // Method to register additional models

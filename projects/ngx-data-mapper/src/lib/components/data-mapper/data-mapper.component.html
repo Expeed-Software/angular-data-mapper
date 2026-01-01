@@ -23,7 +23,7 @@
     <!-- Source Schema Panel -->
     <div class="schema-panel source-panel">
       <schema-tree
-        [schema]="sourceSchema"
+        [schema]="sourceSchemaForTree()"
         [side]="'source'"
         [mappings]="mappings()"
         (fieldDragStart)="onFieldDragStart($event)"
@@ -113,7 +113,7 @@
     <!-- Target Schema Panel -->
     <div class="schema-panel target-panel">
       <schema-tree
-        [schema]="targetSchema"
+        [schema]="targetSchemaForTree()"
         [side]="'target'"
         [mappings]="mappings()"
         [defaultValues]="defaultValues()"

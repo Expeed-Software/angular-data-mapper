@@ -18,7 +18,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import {
   SchemaField,
-  JsonSchema,
+  SchemaDefinition,
   FieldMapping,
   TransformationConfig,
   ArrayMapping,
@@ -27,9 +27,11 @@ import {
   ArraySelectorConfig,
   DefaultValue,
 } from '../../models/schema.model';
+import { JsonSchema } from '../../models/json-schema.model';
 import { MappingService } from '../../services/mapping.service';
 import { SvgConnectorService, Point } from '../../services/svg-connector.service';
 import { TransformationService } from '../../services/transformation.service';
+import { SchemaParserService, SchemaDocument } from '../../services/schema-parser.service';
 import { SchemaTreeComponent, FieldPositionEvent } from '../schema-tree/schema-tree.component';
 import { TransformationPopoverComponent } from '../transformation-popover/transformation-popover.component';
 import { ArrayFilterModalComponent } from '../array-filter-modal/array-filter-modal.component';
@@ -67,8 +69,16 @@ interface VisualConnection {
   styleUrl: './data-mapper.component.scss',
 })
 export class DataMapperComponent implements AfterViewInit, OnDestroy {
-  @Input() sourceSchema!: JsonSchema;
-  @Input() targetSchema!: JsonSchema;
+  @Input() set sourceSchema(value: JsonSchema | SchemaDocument) {
+    if (value) {
+      this._sourceSchemaInput.set(value);
+    }
+  }
+  @Input() set targetSchema(value: JsonSchema | SchemaDocument) {
+    if (value) {
+      this._targetSchemaInput.set(value);
+    }
+  }
   @Input() sampleData: Record<string, unknown> = {};
 
   @Output() mappingsChange = new EventEmitter<FieldMapping[]>();
@@ -79,6 +89,24 @@ export class DataMapperComponent implements AfterViewInit, OnDestroy {
   private mappingService = inject(MappingService);
   private svgConnectorService = inject(SvgConnectorService);
   private transformationService = inject(TransformationService);
+  private schemaParserService = inject(SchemaParserService);
+
+  // Internal signals for schema inputs
+  private _sourceSchemaInput = signal<JsonSchema | SchemaDocument | null>(null);
+  private _targetSchemaInput = signal<JsonSchema | SchemaDocument | null>(null);
+
+  // Converted schemas for the tree component
+  readonly sourceSchemaForTree = computed(() => {
+    const schema = this._sourceSchemaInput();
+    if (!schema) return { name: '', fields: [] };
+    return this.schemaParserService.parseSchema(schema as SchemaDocument, schema.title || 'Source');
+  });
+
+  readonly targetSchemaForTree = computed(() => {
+    const schema = this._targetSchemaInput();
+    if (!schema) return { name: '', fields: [] };
+    return this.schemaParserService.parseSchema(schema as SchemaDocument, schema.title || 'Target');
+  });
 
   // Field positions from both trees
   private sourcePositions = new Map<string, DOMRect>();
@@ -316,10 +344,10 @@ export class DataMapperComponent implements AfterViewInit, OnDestroy {
     return this.mappingService.getDefaultValue(fieldId);
   }
 
-  onPopoverSave(config: TransformationConfig): void {
+  onPopoverSave(transformations: TransformationConfig[]): void {
     const mappingId = this.selectedMappingId();
     if (mappingId) {
-      this.mappingService.updateTransformation(mappingId, config);
+      this.mappingService.updateTransformations(mappingId, transformations);
       this.mappingsChange.emit(this.mappingService.allMappings());
     }
     this.closePopover();
@@ -403,7 +431,7 @@ export class DataMapperComponent implements AfterViewInit, OnDestroy {
         paths,
         midPoint,
         targetPoint,
-        hasTransformation: mapping.transformation.type !== 'direct',
+        hasTransformation: mapping.transformations.length > 1 || mapping.transformations[0]?.type !== 'direct',
         isSelected: mapping.id === selectedId,
         isArrayMapping: mapping.isArrayMapping || false,
         isArrayToObjectMapping: mapping.isArrayToObjectMapping || false,
@@ -455,7 +483,11 @@ export class DataMapperComponent implements AfterViewInit, OnDestroy {
       custom: 'functions',
     };
 
-    return icons[mapping.transformation.type] || 'settings';
+    // For multiple transformations, show a pipeline icon
+    if (mapping.transformations.length > 1) {
+      return 'linear_scale';
+    }
+    return icons[mapping.transformations[0]?.type] || 'settings';
   }
 
   clearAllMappings(): void {

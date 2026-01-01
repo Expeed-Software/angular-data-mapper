@@ -14,7 +14,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { DataMapperComponent, JsonSchema, FieldMapping, MappingService } from '@expeed/ngx-data-mapper';
+import { DataMapperComponent, SchemaDocument, FieldMapping } from '@expeed/ngx-data-mapper';
 import { SampleDataService } from '../../services/sample-data.service';
 
 @Component({
@@ -33,15 +33,14 @@ import { SampleDataService } from '../../services/sample-data.service';
 export class MapperPageComponent implements OnInit {
   private sampleDataService = inject(SampleDataService);
   private snackBar = inject(MatSnackBar);
-  private mappingService = inject(MappingService);
   private router = inject(Router);
 
   @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
   @ViewChild(DataMapperComponent) dataMapper!: DataMapperComponent;
 
   // State: schemas and mappings
-  sourceSchema = signal<JsonSchema>({ name: '', fields: [] });
-  targetSchema = signal<JsonSchema>({ name: '', fields: [] });
+  sourceSchema = signal<SchemaDocument>({ type: 'object', title: '', properties: {} });
+  targetSchema = signal<SchemaDocument>({ type: 'object', title: '', properties: {} });
   sampleData = signal<Record<string, unknown>>({});
   mappings = signal<FieldMapping[]>([]);
 
@@ -71,7 +70,7 @@ export class MapperPageComponent implements OnInit {
 
   /** Export mappings to JSON file */
   exportMappings(): void {
-    const json = JSON.stringify(this.mappings(), null, 2);
+    const json = this.dataMapper.exportMappings();
     const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
 

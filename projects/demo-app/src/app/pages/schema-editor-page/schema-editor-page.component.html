@@ -47,8 +47,8 @@
               >
                 <mat-icon class="schema-icon">data_object</mat-icon>
                 <div class="schema-info">
-                  <span class="schema-name">{{ schema.name }}</span>
-                  <span class="schema-meta">{{ schema.fields.length }} field(s)</span>
+                  <span class="schema-name">{{ schema.title }}</span>
+                  <span class="schema-meta">{{ getPropertyCount(schema) }} field(s)</span>
                 </div>
                 <button
                   mat-icon-button
