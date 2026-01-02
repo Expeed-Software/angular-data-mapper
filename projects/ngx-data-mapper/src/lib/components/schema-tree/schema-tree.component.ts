@@ -163,7 +163,7 @@ export class SchemaTreeComponent implements AfterViewInit, OnDestroy {
     const defaultValue = this.defaultValues.find(d => d.targetField.id === field.id);
     if (!defaultValue || defaultValue.value === null) return '';
 
-    if (defaultValue.valueType === 'date' && defaultValue.value) {
+    if (defaultValue.targetField.type === 'date' && defaultValue.value) {
       return new Date(defaultValue.value as string).toLocaleDateString();
     }
     return String(defaultValue.value);

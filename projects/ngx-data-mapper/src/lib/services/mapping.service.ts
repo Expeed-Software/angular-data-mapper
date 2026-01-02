@@ -406,12 +406,10 @@ export class MappingService {
 
   // Default value methods
   setDefaultValue(targetField: SchemaField, value: string | number | boolean | Date | null): DefaultValue {
-    const valueType = this.getValueType(targetField.type);
-
     const existingDefault = this.defaultValues().find(d => d.targetField.id === targetField.id);
 
     if (existingDefault) {
-      const updated: DefaultValue = { ...existingDefault, value, valueType };
+      const updated: DefaultValue = { ...existingDefault, value };
       this.defaultValues.update(dv => dv.map(d => d.id === existingDefault.id ? updated : d));
       return updated;
     }
@@ -420,7 +418,6 @@ export class MappingService {
       id: this.generateId(),
       targetField,
       value,
-      valueType,
     };
 
     this.defaultValues.update(dv => [...dv, newDefault]);
@@ -437,15 +434,6 @@ export class MappingService {
 
   hasDefaultValue(targetFieldId: string): boolean {
     return this.defaultValues().some(d => d.targetField.id === targetFieldId);
-  }
-
-  private getValueType(fieldType: string): 'string' | 'number' | 'boolean' | 'date' {
-    switch (fieldType) {
-      case 'number': return 'number';
-      case 'boolean': return 'boolean';
-      case 'date': return 'date';
-      default: return 'string';
-    }
   }
 
   exportMappings(name?: string, description?: string): string {

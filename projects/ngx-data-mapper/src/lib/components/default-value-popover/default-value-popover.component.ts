@@ -45,7 +45,7 @@ export class DefaultValuePopoverComponent implements OnInit {
 
   ngOnInit(): void {
     if (this.existingValue) {
-      switch (this.existingValue.valueType) {
+      switch (this.fieldType) {
         case 'string':
           this.stringValue = this.existingValue.value as string || '';
           break;

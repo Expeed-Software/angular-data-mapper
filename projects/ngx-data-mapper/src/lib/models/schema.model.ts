@@ -166,5 +166,4 @@ export interface DefaultValue {
   id: string;
   targetField: SchemaField;
   value: string | number | boolean | Date | null;
-  valueType: 'string' | 'number' | 'boolean' | 'date';
 }
